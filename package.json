@@ -9,7 +9,9 @@
   },
   "devDependencies": {
     "babel-preset-env": "1.7.0",
-    "jest": "27.4.5"
+    "esbuild": "^0.14.49",
+    "jest": "27.4.5",
+    "typescript": "^4.7.4"
   },
   "homepage": "https://github.com/JamieMason/codemods#readme",
   "license": "MIT",
@@ -30,6 +32,8 @@
     "transform": "node ./node_modules/.bin/jscodeshift --parser tsx --ignore-pattern '**/node_modules/**' --extensions js,jsx,ts,tsx -t",
     "use-named-exports": "yarn transform ./transforms/use-named-exports.js",
     "use-named-imports": "yarn transform ./transforms/use-named-imports.js",
-    "use-string-literal-props": "yarn transform ./transforms/use-string-literal-props.js"
+    "use-string-literal-props": "yarn transform ./transforms/use-string-literal-props.js",
+    "fix": "yarn transform ./dist/fix.js",
+    "watch": "node ./esbuild.js"
   }
 }

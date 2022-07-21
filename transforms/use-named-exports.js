@@ -12,22 +12,50 @@ export default (file, api) => {
     return;
   }
 
+  const exportDefaultDeclaration = f.find(j.ExportDefaultDeclaration);
+  const exportedDeclaration = exportDefaultDeclaration.get().value.declaration;
+
   const topLevelVarNames = f.getTopLevelVarNames();
   const usesReact = f.getImportsByPackageName('react').length > 0;
   const intendedName = usesReact ? getNameInPascalCase(file) : getNameInCamelCase(file);
-  const caseInsensitiveMatch = (name) => name.toLowerCase() === intendedName.toLowerCase();
+  const caseInsensitiveMatch = (name) => name.toLowerCase() === exportedDeclaration.name.toLowerCase();
   const existingName = topLevelVarNames.find(caseInsensitiveMatch);
   const nameIsInUse = Boolean(existingName);
   const exportName = existingName || intendedName;
 
   if (!nameIsInUse) {
-    return f
-      .find(j.ExportDefaultDeclaration)
-      .insertBefore((path) => f.exportDefaultAsNamed(path, exportName))
-      .replaceWith(() => f.exportVarNameAsDefault(exportName))
-      .toSource();
-  }
+    const exportDefaultDeclaration = f.find(j.ExportDefaultDeclaration);
+    const exportedDeclaration = exportDefaultDeclaration.get().value.declaration;
+    if (exportedDeclaration.type === 'ObjectExpression') {
+      exportedDeclaration.properties.forEach((property) => {
+        const classes = f.getTopLevelClassNames();
+        const functions = f.getTopLevelFunctionNames();
+        const vars = f.getTopLevelVariableNames();
 
+        if (vars.includes(property.key.name)) {
+          console.log('ITS A VAR!');
+        }
+      });
+    }
+
+    if (topLevelVarNames.includes(exportedDeclaration.name)) {
+      return exportDefaultDeclaration
+        .replaceWith((path) => {
+          return f.exportVarNameAsDefault(exportedDeclaration.name || exportName);
+        })
+        .toSource();
+    } else {
+      return exportDefaultDeclaration
+        .insertBefore((path) => {
+          return f.exportDefaultAsNamed(path, exportName);
+        })
+        .replaceWith((path) => {
+          return f.exportVarNameAsDefault(path.value.declaration.id?.name || exportName);
+        })
+        .toSource();
+    }
+  }
+  console.log('!nameIsInUse', nameIsInUse);
   const classExportOfName = f.getExportsByClassName(exportName);
   const functionExportOfName = f.getExportsByFunctionName(exportName);
   const namedExportOfName = f.getExportsByVarName(exportName);

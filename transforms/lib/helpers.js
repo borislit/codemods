@@ -157,6 +157,9 @@ export const extendApi = once((j) => {
       const exportDefaultDeclaration = path.value;
       const varName = j.identifier(name);
       const varValue = exportDefaultDeclaration.declaration;
+      if (varValue.type === 'FunctionDeclaration' || varValue.type === 'ClassDeclaration') {
+        return j.exportNamedDeclaration(varValue);
+      }
       return j.exportNamedDeclaration(j.variableDeclaration('const', [j.variableDeclarator(varName, varValue)]));
     },
     exportVarNameAsDefault(name) {
