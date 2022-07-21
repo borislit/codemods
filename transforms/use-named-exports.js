@@ -45,6 +45,17 @@ export default (file, api) => {
     }
 
     if (topLevelVarNames.includes(exportedDeclaration.name)) {
+      const classes = f.getTopLevelClassNames();
+      const functions = f.getTopLevelFunctionNames();
+      const vars = f.getTopLevelVariableNames();
+
+      if (functions.includes(exportedDeclaration.name)) {
+        f.getTopLevelFunctionByName(exportedDeclaration.name).replaceWith((path) => f.exportFunction(path));
+      }
+
+      if (vars.includes(exportedDeclaration.name)) {
+        f.getTopLevelVariableByName(exportedDeclaration.name).replaceWith((path) => f.exportVariable(path));
+      }
       return exportDefaultDeclaration
         .replaceWith((path) => {
           return f.exportVarNameAsDefault(exportedDeclaration.name || exportName);

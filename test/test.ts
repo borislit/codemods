@@ -1,3 +1,6 @@
-function Foo() {}
-const a = 3
-export default {Foo,a};
+import React from 'react';
+
+const Foo: React.FC = () => {
+
+}
+export default Foo;
