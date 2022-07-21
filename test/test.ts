@@ -1,2 +1,2 @@
 export function Foo() {}
-export default Foo;
+export default Foo();
