@@ -32,10 +32,16 @@ export default (file, api) => {
         const functions = f.getTopLevelFunctionNames();
         const vars = f.getTopLevelVariableNames();
 
+        if (functions.includes(property.key.name)) {
+          f.getTopLevelFunctionByName(property.key.name).replaceWith((path) => f.exportFunction(path));
+        }
+
         if (vars.includes(property.key.name)) {
-          console.log('ITS A VAR!');
+          f.getTopLevelVariableByName(property.key.name).replaceWith((path) => f.exportVariable(path));
         }
       });
+
+      return exportDefaultDeclaration.toSource();
     }
 
     if (topLevelVarNames.includes(exportedDeclaration.name)) {
