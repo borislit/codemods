@@ -41,7 +41,14 @@ export default (file, api) => {
         }
       });
 
-      return exportDefaultDeclaration.toSource();
+      return exportDefaultDeclaration
+      .insertBefore((path) => {
+        return f.exportDefaultAsNamed(path, exportName);
+      })
+      .replaceWith((path) => {
+        return f.exportVarNameAsDefault(path.value.declaration.id?.name || exportName);
+      })
+      .toSource();
     }
 
     if (topLevelVarNames.includes(exportedDeclaration.name)) {
