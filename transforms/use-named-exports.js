@@ -1,7 +1,7 @@
 import { getNameInCamelCase, getNameInPascalCase } from './lib/file';
 import { extendApi } from './lib/helpers';
 
-export default (file, api) => {
+export default async (file, api) => {
   const j = api.jscodeshift;
   const f = j(file.source);
 
@@ -42,13 +42,11 @@ export default (file, api) => {
       });
 
       return exportDefaultDeclaration
-      .insertBefore((path) => {
-        return f.exportDefaultAsNamed(path, exportName);
-      })
-      .replaceWith((path) => {
-        return f.exportVarNameAsDefault(path.value.declaration.id?.name || exportName);
-      })
-      .toSource();
+        .insertBefore((path) => {
+          return f.exportDefaultAsNamed(path, exportName);
+        })
+        .remove()
+        .toSource();
     }
 
     if (topLevelVarNames.includes(exportedDeclaration.name)) {
@@ -73,9 +71,7 @@ export default (file, api) => {
         .insertBefore((path) => {
           return f.exportDefaultAsNamed(path, exportName);
         })
-        .replaceWith((path) => {
-          return f.exportVarNameAsDefault(path.value.declaration.id?.name || exportName);
-        })
+        .remove()
         .toSource();
     }
   }
