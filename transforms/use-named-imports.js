@@ -5,20 +5,22 @@ export default async (file, api) => {
   const j = api.jscodeshift;
 
   const deps = [];
+  const exportsMap = new Map();
 
   j(file.source)
     .find(j.ImportDeclaration)
     .forEach((importDeclaration) => {
-      deps.push(importDeclaration.value.source.value);
+      deps.push(path.resolve(process.cwd() + '/test', importDeclaration.value.source.value));
     });
 
-  const dep = path.resolve(process.cwd() + '/test', deps[0]);
-  console.log('dep', dep);
+  const fullpath = path.resolve(process.cwd() + '/test', file.path);
+  console.log('dep', fullpath);
 
   let result = await esbuild.build({
-    entryPoints: [dep],
+    entryPoints: deps,
     platform: 'neutral',
     format: 'esm',
+    outdir: '/tmp/',
     metafile: true,
     write: false,
     loader: {
@@ -32,7 +34,9 @@ export default async (file, api) => {
 
   for (let key in metafile.outputs) {
     let output = metafile.outputs[key];
-    if (output.entryPoint) console.log('exports:', output.exports);
+    if (output.entryPoint) {
+      exportsMap.set(path.resolve(process.cwd(), output.entryPoint.split('.')[0]), output.exports);
+    }
   }
 
   const isDefaultImport = (specifier) => specifier.type === 'ImportDefaultSpecifier';
@@ -47,12 +51,15 @@ export default async (file, api) => {
     .filter((path) => hasDefaultImport(path.value))
     .filter((path) => isRelativeImport(path.value))
     .filter((path) => isScriptImport(path.value))
-    .forEach((path) => {
-      const importDeclaration = path.value;
+    .forEach((importPath) => {
+      const id = path.resolve(process.cwd() + '/test', importPath.value.source.value);
+      const results = exportsMap.get(id);
+      console.log(results);
+      const importDeclaration = importPath.value;
       importDeclaration.specifiers = importDeclaration.specifiers.map((specifier) => {
         if (isDefaultImport(specifier)) {
           const name = specifier.local.name;
-          const namedImport = j.importSpecifier(j.identifier(name));
+          const namedImport = j.importSpecifier(j.identifier(results[0]));
           return namedImport;
         }
         return specifier;
