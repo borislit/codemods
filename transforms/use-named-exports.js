@@ -1,22 +1,16 @@
 import { getNameInCamelCase, getNameInPascalCase } from './lib/file';
-import { extendApi } from './lib/helpers';
 
-export default async (file, api) => {
-  const j = api.jscodeshift;
-  const f = j(file.source);
-
-  extendApi(j);
-
-  if (f.find(j.ExportDefaultDeclaration).length === 0) {
+export async function transformDefaultExportToNamed(source, file, api) {
+  if (source.find(api.ExportDefaultDeclaration).length === 0) {
     console.log(`%s has no default export`, file.path);
     return;
   }
 
-  const exportDefaultDeclaration = f.find(j.ExportDefaultDeclaration);
+  const exportDefaultDeclaration = source.find(api.ExportDefaultDeclaration);
   const exportedDeclaration = exportDefaultDeclaration.get().value.declaration;
 
-  const topLevelVarNames = f.getTopLevelVarNames();
-  const usesReact = f.getImportsByPackageName('react').length > 0;
+  const topLevelVarNames = source.getTopLevelVarNames();
+  const usesReact = source.getImportsByPackageName('react').length > 0;
   const intendedName = usesReact ? getNameInPascalCase(file) : exportedDeclaration.name || getNameInCamelCase(file);
   const caseInsensitiveMatch = (name) => name.toLowerCase() === intendedName.toLowerCase();
   const existingName = topLevelVarNames.find(caseInsensitiveMatch);
@@ -24,64 +18,60 @@ export default async (file, api) => {
   const exportName = existingName || intendedName;
 
   if (!nameIsInUse) {
-    const exportDefaultDeclaration = f.find(j.ExportDefaultDeclaration);
+    const exportDefaultDeclaration = source.find(api.ExportDefaultDeclaration);
     const exportedDeclaration = exportDefaultDeclaration.get().value.declaration;
     if (exportedDeclaration.type === 'ObjectExpression') {
       exportedDeclaration.properties.forEach((property) => {
-        const classes = f.getTopLevelClassNames();
-        const functions = f.getTopLevelFunctionNames();
-        const vars = f.getTopLevelVariableNames();
+        const classes = source.getTopLevelClassNames();
+        const functions = source.getTopLevelFunctionNames();
+        const vars = source.getTopLevelVariableNames();
 
         if (functions.includes(property.key.name)) {
-          f.getTopLevelFunctionByName(property.key.name).replaceWith((path) => f.exportFunction(path));
+          source.getTopLevelFunctionByName(property.key.name).replaceWith((path) => source.exportFunction(path));
         }
 
         if (vars.includes(property.key.name)) {
-          f.getTopLevelVariableByName(property.key.name).replaceWith((path) => f.exportVariable(path));
+          source.getTopLevelVariableByName(property.key.name).replaceWith((path) => source.exportVariable(path));
         }
       });
 
       return exportDefaultDeclaration
         .insertBefore((path) => {
-          return f.exportDefaultAsNamed(path, exportName);
+          return source.exportDefaultAsNamed(path, exportName);
         })
-        .remove()
-        .toSource();
+        .remove();
     }
 
     if (topLevelVarNames.includes(exportedDeclaration.name)) {
-      const classes = f.getTopLevelClassNames();
-      const functions = f.getTopLevelFunctionNames();
-      const vars = f.getTopLevelVariableNames();
+      const classes = source.getTopLevelClassNames();
+      const functions = source.getTopLevelFunctionNames();
+      const vars = source.getTopLevelVariableNames();
 
       if (functions.includes(exportedDeclaration.name)) {
-        f.getTopLevelFunctionByName(exportedDeclaration.name).replaceWith((path) => f.exportFunction(path));
+        source.getTopLevelFunctionByName(exportedDeclaration.name).replaceWith((path) => source.exportFunction(path));
       }
 
       if (vars.includes(exportedDeclaration.name)) {
-        f.getTopLevelVariableByName(exportedDeclaration.name).replaceWith((path) => f.exportVariable(path));
+        source.getTopLevelVariableByName(exportedDeclaration.name).replaceWith((path) => source.exportVariable(path));
       }
-      return exportDefaultDeclaration
-        .replaceWith((path) => {
-          return f.exportVarNameAsDefault(exportedDeclaration.name || exportName);
-        })
-        .toSource();
+      return exportDefaultDeclaration.replaceWith((path) => {
+        return source.exportVarNameAsDefault(exportedDeclaration.name || exportName);
+      });
     } else {
       return exportDefaultDeclaration
         .insertBefore((path) => {
-          return f.exportDefaultAsNamed(path, exportName);
+          return source.exportDefaultAsNamed(path, exportName);
         })
-        .remove()
-        .toSource();
+        .remove();
     }
   }
   console.log('!nameIsInUse', nameIsInUse);
-  const classExportOfName = f.getExportsByClassName(exportName);
-  const functionExportOfName = f.getExportsByFunctionName(exportName);
-  const namedExportOfName = f.getExportsByVarName(exportName);
-  const matchingClass = f.getTopLevelClassByName(exportName);
-  const matchingFunction = f.getTopLevelFunctionByName(exportName);
-  const matchingVariable = f.getTopLevelVariableByName(exportName);
+  const classExportOfName = source.getExportsByClassName(exportName);
+  const functionExportOfName = source.getExportsByFunctionName(exportName);
+  const namedExportOfName = source.getExportsByVarName(exportName);
+  const matchingClass = source.getTopLevelClassByName(exportName);
+  const matchingFunction = source.getTopLevelFunctionByName(exportName);
+  const matchingVariable = source.getTopLevelVariableByName(exportName);
 
   if (classExportOfName.length > 0) {
     console.log(`%s already exports a class called %s`, file.path, exportName);
@@ -100,16 +90,16 @@ export default async (file, api) => {
 
   if (matchingClass.length > 0) {
     console.log(`%s has a class called %s which is not exported`, file.path, exportName);
-    return matchingClass.replaceWith(() => f.exportClass(matchingClass.get())).toSource();
+    return matchingClass.replaceWith(() => source.exportClass(matchingClass.get()));
   }
 
   if (matchingFunction.length > 0) {
     console.log(`%s has a function called %s which is not exported`, file.path, exportName);
-    return matchingFunction.replaceWith(() => f.exportFunction(matchingFunction.get())).toSource();
+    return matchingFunction.replaceWith(() => source.exportFunction(matchingFunction.get()));
   }
 
   if (matchingVariable.length > 0) {
     console.log(`%s has a variable called %s which is not exported`, file.path, exportName);
-    return matchingVariable.replaceWith(() => f.exportVariable(matchingVariable.get())).toSource();
+    return matchingVariable.replaceWith(() => source.exportVariable(matchingVariable.get()));
   }
-};
+}

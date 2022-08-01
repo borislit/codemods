@@ -1,4 +1,6 @@
-import { foo } from './dep';
-import { bar } from './dep2';
+import David from './dep';
+import David2 from './dep2';
 
-export const test = Blah(); ;
+
+export const test = David();
+export default test;

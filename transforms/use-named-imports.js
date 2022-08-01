@@ -1,17 +1,12 @@
 import path from 'path';
 import * as esbuild from 'esbuild';
 
-export default async (file, api) => {
-  const j = api.jscodeshift;
-
+export async function convertDepsToNamedImports(source, file, api) {
   const deps = [];
   const exportsMap = new Map();
-
-  j(file.source)
-    .find(j.ImportDeclaration)
-    .forEach((importDeclaration) => {
-      deps.push(path.resolve(process.cwd() + '/test', importDeclaration.value.source.value));
-    });
+  source.find(api.ImportDeclaration).forEach((importDeclaration) => {
+    deps.push(path.resolve(process.cwd() + '/test', importDeclaration.value.source.value));
+  });
 
   const fullpath = path.resolve(process.cwd() + '/test', file.path);
   console.log('dep', fullpath);
@@ -46,8 +41,8 @@ export default async (file, api) => {
   const isScriptImport = (importDeclaration) =>
     !['.json', '.md', '.css', '.svg'].some((ext) => importDeclaration.source.value.endsWith(ext));
 
-  return j(file.source)
-    .find(j.ImportDeclaration)
+  source
+    .find(api.ImportDeclaration)
     .filter((path) => hasDefaultImport(path.value))
     .filter((path) => isRelativeImport(path.value))
     .filter((path) => isScriptImport(path.value))
@@ -59,11 +54,10 @@ export default async (file, api) => {
       importDeclaration.specifiers = importDeclaration.specifiers.map((specifier) => {
         if (isDefaultImport(specifier)) {
           const name = specifier.local.name;
-          const namedImport = j.importSpecifier(j.identifier(results[0]));
+          const namedImport = api.importSpecifier(api.identifier(results[0]));
           return namedImport;
         }
         return specifier;
       });
-    })
-    .toSource();
-};
+    });
+}
